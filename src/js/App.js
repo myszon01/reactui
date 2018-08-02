@@ -1,9 +1,12 @@
-import React, { Component } from 'react';
+import React from 'react';
 import '../css/App.css';
-import { adalApiFetch, authContext } from '../adalConfig';
+import { adalApiFetch,  AppID } from '../adalConfig';
 import fetch from 'isomorphic-fetch';
+import OEM from './OEM'
+import RentalCompany from './RentalCompany'
+import Driver from './Driver'
 
-class App extends Component {
+class App extends React.PureComponent {
 
   constructor(props){
     super(props)
@@ -11,16 +14,21 @@ class App extends Component {
       workList: [],
       appList: [],
       appLabels: [],
-      appUsers: []
+      appUsers: [],
+      appRole: [],
+      appStates: [],
+      appUserMe: [],
+      app: [],
+      usersDeviceAddress: []
       
     };
    
     this.getApplicationList.bind(this)
     this.logOut.bind(this)
     this.showWorkgflows = this.showWorkgflows.bind(this);
-    this.checkUserByHash = this.checkUserByHash.bind(this)
     this.findDuplicates = this.findDuplicates.bind(this)
-    
+    this.getApplicationRoles = this.getApplicationRoles.bind(this)
+    this.createCar = this.createCar.bind(this)
   }
 
   logOut(){
@@ -36,54 +44,91 @@ class App extends Component {
   return arr;
   }
 
-  
-  
   getApplicationList(){
-    const myApiCall = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications")
-    myApiCall().then(res=>{
+    const myApiCall4 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications")
+    myApiCall4().then(res=>{
       return res.json()
     }).then(res =>{
-      console.log(res)
       this.setState({appList: this.findDuplicates(res.applications)})
-    })  
-    
-   
-
-   
-  }  
+    }) 
+  }
   
-  checkUserByHash(arr){
-    
-  console.log(this.appUsers)
-  console.log(arr)
-}
+  getApplicationRoles(){
+    const myApiCall = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/users/me")
+    const myApiCall2 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications/"+AppID+"/roleAssignments")
+    const myApiCall3 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications/"+AppID)
+
+    myApiCall().then(usr=>{
+      return usr.json()
+    }).then(usr =>{
+      this.setState({appUserMe: usr})
+      myApiCall2().then(roles=>{
+        return roles.json()
+      }).then(roles =>{
+        const role = roles.roleAssignments.find( role =>{
+          return role.user.userID === usr.currentUser.userID
+        })
+        const users = roles.roleAssignments.filter(role =>{
+          return role.applicationRoleId === 11
+        })
+        this.setState({usersDeviceAddress: users})
+        myApiCall3().then(app=>{
+          return app.json()
+        }).then(app =>{
+          const appRole= app.applicationRoles.find( appRole =>{
+            return appRole.id === role.applicationRoleId
+          })
+          this.setState({appRole: appRole.name, appUsers: app.applicationRoles})
+          
+        })
+      }) 
+    })  
+  }  
+
+  createCar(body){
+    const opt = {
+                  method: "POST",
+                  body: JSON.stringify(body),
+                  headers: {
+                    "Content-Type": "application/json;charset=UTF-8",
+                  }
+                }
+    const myApiCall = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/contracts?workflowId=3&contractCodeId=3&connectionId=1", opt) 
+    console.log(opt)
+    myApiCall().then(res =>(res.json)).then(res=>{console.log(res)})
+
+  }
+
+
+  
 
   showWorkgflows(id){
     
     //get names for properties of contract for table's labels
-    const myApiCall = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications/workflows/"+id)
-    myApiCall().then((res)=>{
+    const myApiCall1 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/applications/workflows/"+id)
+    myApiCall1().then((res)=>{
       return res.json()
     }).then((res) =>{
-       this.setState({appLabels: res.properties})
-       console.log(res)
+      console.log(res)
+       this.setState({appLabels: res.properties, appStates: res.states,app: res})
     })
     
     // assaign address in contract to the user 
-    const myApiCall2 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/contracts?workflowId="+id)
-    const myApiCall4 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/users")
-    myApiCall4().then(res=>{
+    const myApiCall2 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/users")
+    const myApiCall3 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/contracts?workflowId="+id)
+    myApiCall2().then(res=>{
       return res.json()
     }).then(res =>{
       return res.users
     }).then(arrUsr=>{
-      myApiCall2().then((res)=>{
+      myApiCall3().then((res)=>{
         return res.json()
       }).then((res) =>{
+        console.log(res)
         res.contracts.forEach(contract =>{
-          contract.contractProperties.map(prop =>{
-            arrUsr.map(usr=>{
-              usr.userChainMappings.map(chain=>{
+          contract.contractProperties.forEach(prop =>{
+            arrUsr.forEach(usr=>{
+              usr.userChainMappings.forEach(chain=>{
                 if(chain.chainIdentifier === prop.value){
                   prop['value2'] = prop.value
                   prop.value = usr.emailAddress
@@ -99,24 +144,11 @@ class App extends Component {
       })
 
     })  
-
-    
-    
-    
-
-    const myApiCall3 = () => adalApiFetch(fetch,"https://cc-44yldo-api.azurewebsites.net/api/v1/contracts/2")
-    
-    myApiCall3().then((res)=>{
-      return res.json()
-    }).then((res) =>{
-      //console.log("app > work")
-      console.log(res)
-    })
     
   }
 
 componentDidMount(){
- 
+  this.getApplicationRoles()
   this.getApplicationList();
   
 }
@@ -125,53 +157,20 @@ componentDidMount(){
     
     
     return (
-      <div className="App">
-        
-        
-        <div className="col-lg-10 col-centered">
-          <table className="table">
-          <thead>
-              <tr className="thead-dark">
-                <th>id</th>
-                <th>name</th>
-                <th> ... </th>               
-              </tr>
-            </thead>
-            <tbody>
-              {this.state.appList.map((r, k) => (
-                <tr key={k}>
-                    <td>{r.id}</td>
-                    <td>{r.name}</td>
-                    <td> <button onClick={(e) => this.showWorkgflows(r.id,e)}>Show Workflow</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-       
-        <div className="col-lg-12" style ={{overflowX: 'auto'}}>
-          <table className="table">
-             <thead>
-             <tr className="thead-dark">
-                {this.state.appLabels.map((r, k) => (
-                  <th className="thead-dark" key={k}>
-                      {r.displayName}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {this.state.workList.map((r, k) => (
-                <tr key={k}>
-                    {r.contractProperties.map((r,k) =>(
-                      <td key={k}>{r.value}</td>
-                    ))} 
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>     
-
+      <div> 
+        <h1>{this.state.appRole}</h1>
+        {(() => {
+          switch (this.state.appRole) {
+              case 'OEM':
+                  return <OEM state = {this.state} showWorkgflows = {this.showWorkgflows.bind(this)} createCar={this.createCar.bind(this)} />
+              case 'RentalCompany':
+                  return <RentalCompany state = {this.state} showWorkgflows = {this.showWorkgflows.bind(this)} />
+              case 'Driver':
+                  return <Driver state = {this.state} showWorkgflows = {this.showWorkgflows.bind(this)} />
+              default :
+                  null
+          }
+        })()}
       </div>
     );
   }

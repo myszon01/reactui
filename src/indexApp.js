@@ -22,6 +22,8 @@ class EntryPage extends React.PureComponent{
     window.location ="https://login.microsoftonline.com/cfd22cf0-e01a-419f-bc11-a2a7eb936762/oauth2/logout"
   }
 
+
+
   render(){
       const Navbar = () =>{
           
@@ -59,12 +61,12 @@ class EntryPage extends React.PureComponent{
         )
         } else {
           return(
-            <h1 className="App-title">Welcome  {authContext._user.userName + " - "+ authContext._user.profile.roles[0] }</h1>
+            <h1 className="App-title">Welcome  {authContext._user.userName} </h1>
           )
         }
       }
       // Request login to AAD
-      const AppComponent = withAdalLoginApi( () => <App />, (error) => <div>{error}</div>);
+      const AppComponent = withAdalLoginApi( () => <App/>, (error) => <div>{error}</div>);
       return(
         <Router>
           <div className = "App col-lg-10 col-centered">
